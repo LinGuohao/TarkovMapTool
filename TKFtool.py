@@ -1,5 +1,6 @@
 from selenium import  webdriver
 from selenium.webdriver.common.by import By
+import random
 import requests
 import keyboard as kb
 import time
@@ -8,12 +9,14 @@ import pathlib
 import json
 import traceback
 import atexit
+import re
+import math
 
 
 #截图路径
 ImgPath=str(pathlib.Path.home())+'\\Documents\\Escape from Tarkov\\Screenshots\\'
 #位置刷新间隔（秒）
-sleeptime=1.5
+sleeptime=2
 #自动截图
 auto=False
 #启动自动截图
@@ -21,7 +24,7 @@ on_auto='f5'
 #关闭自动截图
 off_auto='f6'
 #截图键
-key='j'
+key='f12'
 #房间号
 roomid=''
 #用户id
@@ -31,13 +34,80 @@ server=''
 
 
 tmp=''
+
+def extract_coordinates(filename):
+    '''从文件名中提取坐标'''
+    # 正则表达式匹配坐标
+    match = re.search(r'_(\d+\.\d+), (\d+\.\d+),', filename)
+    if match:
+        x = float(match.group(1))
+        y = float(match.group(2))
+        return x, y
+    return None
+
+def calculate_angle(file1, file2):
+    '''计算两个文件中坐标的角度'''
+    coord1 = extract_coordinates(file1)
+    coord2 = extract_coordinates(file2)
+
+    if coord1 and coord2:
+        delta_x = coord2[0] - coord1[0]
+        delta_y = coord2[1] - coord1[1]
+        angle_radians = math.atan2(delta_y, delta_x)
+        angle_degrees = math.degrees(angle_radians)
+        return angle_degrees
+    return None
+
+
+
+def setMarker(driver: webdriver.Edge, id, angle, color='#800080'):
+    '''设置指向特定角度的箭头标记位置'''
+    # 确保id值存在
+    if not id:
+        id = 'offline'
+    try:
+        # 尝试找到已存在的箭头标记
+        marker = driver.find_element(By.XPATH, f"//*[@id='{id}']")
+    except:
+        # 如果不存在，创建一个新的SVG箭头标记
+        arrow_svg = f'''
+        <svg id='{id}' width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="transform:rotate({angle}deg);">
+            <path d="M12 2L12 22M12 22L5 15M12 22L19 15" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        '''
+        js = f'''var map=document.querySelector("#map");
+                map.insertAdjacentHTML("beforeend", `{arrow_svg}`);
+              '''
+        driver.execute_script(js)
+        return
+
+    # 更新已存在的箭头标记的旋转角度
+    js = f'''var marker=document.querySelector("#{id}");
+             marker.style.transform = 'rotate({angle}deg)';
+          '''
+    driver.execute_script(js)
+
+
 def getPosition():
-    '''获取截图位置信息'''
+    '''获取时间最近的截图位置信息'''
     global tmp
-    dir=os.listdir(ImgPath)
-    if len(dir)==0:
-        return tmp
-    tmp=dir[0]
+    # 筛选出所有 PNG 文件
+    files = [f for f in os.listdir(ImgPath) if f.endswith('.png')]
+    
+    if not files:
+        tmp = ""
+        return ""
+    
+    # 按修改时间降序排序
+    files.sort(key=lambda x: os.path.getmtime(os.path.join(ImgPath, x)), reverse=True)
+    # file1,file2 = files[0], files[1]
+    # if file1 and file2:
+    #     angle = calculate_angle(file1, file2)
+    #     if angle is not None:
+    #         print(f"Angle between last two screenshots: {angle} degrees")
+
+    # 选取时间最近的文件
+    tmp = files[0]
     os.remove(ImgPath+tmp)
     return tmp
 
@@ -125,31 +195,33 @@ if __name__ == "__main__":
     kb.on_press(setScreenShoot)#绑定键盘事件调整键盘事件
     playerList=[]
     while True:
-        time.sleep(sleeptime)
+        random_sleep_time = random.uniform(sleeptime - 0.5, sleeptime + 0.5)
+        time.sleep(random_sleep_time)
         try:
             if auto: #是否自动截图
                 kb.press_and_release(key)
             bt=driver.find_element(By.XPATH, "/html/body/div/div/div/div[2]/div/div/div[1]/div/input")
             bt.click()
-            time.sleep(0.01)
-            bt.send_keys(getPosition())
+            val = getPosition()
+            time.sleep(0.1)
+            bt.send_keys(val)
             #新的标记渲染机制
             ps=getMarker(driver)
             marker=driver.find_element(By.XPATH,"/html/body/div/div/div/div[2]/div/div/div[4]/div")
             driver.execute_script('arguments[0].style.visibility="hidden";',marker)
-            setMarker(driver,playerid,ps,color="#6aff00")
+            setMarker(driver, playerid, ps, color="#800080")
             #处理多人
-            if server and roomid and playerid:
-                print("处理多人")
-                datas=setPlayerData(getMarker(driver))
-                for player in playerList:
-                    if player !=playerid:
-                        setMarker(driver,player)
-                for player in datas.keys():
-                    if player != playerid:
-                        setMarker(driver,player,datas[player])
-                playerList=datas.keys()
-                print(setPlayerData(getMarker(driver)))
+            # if server and roomid and playerid:
+            #     print("处理多人")
+            #     datas=setPlayerData(getMarker(driver))
+            #     for player in playerList:
+            #         if player !=playerid:
+            #             setMarker(driver,player)
+            #     for player in datas.keys():
+            #         if player != playerid:
+            #             setMarker(driver,player,datas[player])
+            #     playerList=datas.keys()
+            #     print(setPlayerData(getMarker(driver)))
         except:
             print(traceback.format_exc())
             try:
