@@ -126,34 +126,33 @@ def getMarker(driver:webdriver.Edge):
     marker=driver.find_element(By.XPATH, "//*[@class='marker']")
     return marker.get_attribute('style').rstrip("visibility: hidden;")+";"
 
-# def setMarker(driver:webdriver.Edge, id, ps='', angle=None, color='#800080'):
-#     '''设置新marker位置，使用SVG箭头代替原有实心圆'''
+# def setMarker(driver:webdriver.Edge, id, ps='', angle=0, color='#f9ff01'):
+#     '''设置新marker位置，并根据提供的角度创建SVG箭头'''
 #     if not id:
 #         id = 'offline'
 #     try:
-#         # 尝试查找是否已经有这样的marker
-#         marker = driver.find_element(By.XPATH, f"//*[@id='{id}']")
-#         # 如果找到，移除它，后面会创建新的
-#         driver.execute_script("arguments[0].remove();", marker)
+#         driver.find_element(By.XPATH, f"//*[@id='{id}']")
 #     except:
-#         # 没有找到，什么也不做，后面会创建新的
-#         pass
-
-#     # 确定箭头的旋转角度
-#     transform = f"rotate({angle}deg)" if angle is not None else ""
-
-#     # 创建SVG箭头标记
-#     arrow_svg = f'''
-#     <svg id='{id}' viewBox="0 0 24 24" style="{ps} {transform}">
-#         <path d="M12 2L12 22M12 22L5 15M12 22L19 15" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-#     </svg>
-#     '''
-
-#     # 插入SVG箭头标记到地图中
-#     js = f'''var map=document.querySelector("#map");
-#              map.insertAdjacentHTML("beforeend", `{arrow_svg}`);
-#           '''
-#     driver.execute_script(js)
+#         arrow_svg = f'''
+#         <svg id='{id}' viewBox="0 0 24 24" style="{ps} transform: rotate({angle}deg);">
+#             <path d="M12 2L12 22M12 22L5 15M12 22L19 15" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+#         </svg>
+#         '''
+#         js = f'''var map=document.querySelector("#map");
+#                 map.insertAdjacentHTML("beforeend", `{arrow_svg}`);
+#              '''
+#         driver.execute_script(js)
+#         return
+#     if ps != '':
+#         js = f'''
+#         var marker=document.querySelector("#{id}");
+#         if (marker.tagName.toLowerCase() === 'div') {{
+#             marker.style = '{ps} background: {color}; transform: rotate({angle}deg);';
+#         }} else {{
+#             marker.setAttribute('style', '{ps} transform: rotate({angle}deg); stroke: {color};');
+#         }}
+#         '''
+#         driver.execute_script(js)
 
 
 def setMarker(driver:webdriver.Edge,id,ps='',color='#f9ff01'):
